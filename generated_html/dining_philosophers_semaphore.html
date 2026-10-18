@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dining Philosophers (Semaphore)</title>
+<style>
+  /* one colour per state */
+  :root {
+    --bg:#f6f7f9; --panel:#ffffff; --text:#1d2330; --muted:#6b7280; --border:#dde1e7;
+    --WAITING:#f59e0b; --HUNGRY:#ef4444; --READING:#3b82f6; --WRITING:#8b5cf6;
+    --EATING:#10b981; --THINKING:#64748b; --DONE:#9ca3af; --IDLE:#cbd5e1;
+    --ACQUIRING_FORKS:#f97316; --RELEASING_FORKS:#06b6d4;
+  }
+  body { margin:0; font-family:system-ui,sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.4rem; margin:0 0 12px; }
+  h2 { font-size:1rem; margin:0 0 8px; }
+  section { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:12px; }
+  .controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  button { padding:6px 14px; border:1px solid var(--border); border-radius:6px; background:#fff; cursor:pointer; font:inherit; }
+  button:hover { background:#eef2f7; }
+  #status { color:var(--muted); font-variant-numeric:tabular-nums; }
+  #actors { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .card { border-radius:8px; padding:10px; color:#fff; background:var(--IDLE); transition:background .25s; }
+  .card .name { font-weight:600; }
+  .card .type, .card .desc { font-size:.8rem; opacity:.92; }
+  .card.current { outline:3px solid var(--text); }
+  #legend { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  #table-svg { width:100%; max-width:360px; display:block; margin:0 auto 10px; }
+  #table-svg[hidden] { display:none; }
+  #resource { display:flex; flex-wrap:wrap; gap:12px; }
+  .fork, .stat { border:1px solid var(--border); border-radius:6px; padding:8px 12px; min-width:110px; }
+  .fork.held { background:#fde68a; }
+  .stat b { font-size:1.4rem; display:block; }
+  .table-wrap { max-height:340px; overflow:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  th, td { text-align:left; padding:4px 8px; border-bottom:1px solid var(--border); }
+  th { position:sticky; top:0; background:var(--panel); }
+  tr.future { opacity:.35; }
+  tr.current { background:#fef3c7; }
+  .pill { padding:1px 8px; border-radius:10px; color:#fff; font-size:.75rem; }
+  .summary td:first-child { color:var(--muted); width:38%; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Dining Philosophers (Semaphore)</h1>
+
+  <section class="controls">
+    <button id="play">Play</button>
+    <button id="pause">Pause</button>
+    <button id="step">Step</button>
+    <button id="reset">Reset</button>
+    <label>Speed <input id="speed" type="range" min="1" max="20" value="5"></label>
+    <span id="status"></span>
+  </section>
+
+  <section><h2>Actors</h2><div id="actors"></div><div id="legend"></div></section>
+
+  <section><h2 id="resource-title">Shared resource</h2>
+    <svg id="table-svg" viewBox="0 0 300 300" hidden></svg>
+    <div id="resource"></div>
+  </section>
+
+  <section><h2>Timeline</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Time (ms)</th><th>Thread</th><th>Actor</th><th>State</th><th>Description</th></tr></thead>
+      <tbody id="timeline"></tbody>
+    </table></div>
+  </section>
+
+  <section><h2>Run summary</h2><table class="summary"><tbody id="summary"></tbody></table></section>
+</main>
+
+<script>
+// The trace recorded by the Java program, embedded when the HTML file was generated.
+const DATA = {"meta":{"kind":"DP","title":"Dining Philosophers (Semaphore)","forkCount":4,"actors":[{"thread":"Philosopher-0","type":"Philosopher","role":"philosopher","initial":"THINKING"},{"thread":"Philosopher-1","type":"Philosopher","role":"philosopher","initial":"THINKING"},{"thread":"Philosopher-2","type":"Philosopher","role":"philosopher","initial":"THINKING"},{"thread":"Philosopher-3","type":"Philosopher","role":"philosopher","initial":"THINKING"}],"summary":{"Solution":"Semaphores: 4 fork semaphores + room(3)","Philosophers / meals each":"4 / 3","Meals eaten":"P0=3, P1=3, P2=3, P3=3","Fork-ownership violations":"0","Deadlock handling":"room(3) breaks the circular wait","Starvation handling":"fair (FIFO) semaphores"}},"events":[{"t":46,"thread":"Philosopher-0","actor":"Philosopher","state":"THINKING","desc":"sits down and thinks","value":-1,"readers":0,"writer":false,"forks":[null,null,null,null]},
+{"t":89,"thread":"Philosopher-3","actor":"Philosopher","state":"THINKING","desc":"sits down and thinks","value":-1,"readers":0,"writer":false,"forks":[null,null,null,null]},
+{"t":91,"thread":"Philosopher-2","actor":"Philosopher","state":"THINKING","desc":"sits down and thinks","value":-1,"readers":0,"writer":false,"forks":[null,null,null,null]},
+{"t":93,"thread":"Philosopher-1","actor":"Philosopher","state":"THINKING","desc":"sits down and thinks","value":-1,"readers":0,"writer":false,"forks":[null,null,null,null]},
+{"t":285,"thread":"Philosopher-0","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":[null,null,null,null]},
+{"t":298,"thread":"Philosopher-0","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 0 and 1","value":-1,"readers":0,"writer":false,"forks":[null,null,null,null]},
+{"t":305,"thread":"Philosopher-0","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 0, waiting for fork 1","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0",null,null,null]},
+{"t":365,"thread":"Philosopher-3","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0",null,null,null]},
+{"t":369,"thread":"Philosopher-3","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 3 and 0","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0",null,null,null]},
+{"t":372,"thread":"Philosopher-3","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 3, waiting for fork 0","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0",null,null,"Philosopher-3"]},
+{"t":397,"thread":"Philosopher-0","actor":"Philosopher","state":"EATING","desc":"eats meal 1 after waiting 103 ms","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0",null,"Philosopher-3"]},
+{"t":495,"thread":"Philosopher-1","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0",null,"Philosopher-3"]},
+{"t":499,"thread":"Philosopher-1","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 1 and 2","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0",null,"Philosopher-3"]},
+{"t":504,"thread":"Philosopher-0","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 0 and 1","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0",null,"Philosopher-3"]},
+{"t":509,"thread":"Philosopher-0","actor":"Philosopher","state":"THINKING","desc":"thinks","value":-1,"readers":0,"writer":false,"forks":[null,null,null,"Philosopher-3"]},
+{"t":511,"thread":"Philosopher-1","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 1, waiting for fork 2","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1",null,"Philosopher-3"]},
+{"t":532,"thread":"Philosopher-3","actor":"Philosopher","state":"EATING","desc":"eats meal 1 after waiting 167 ms","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1",null,"Philosopher-3"]},
+{"t":567,"thread":"Philosopher-2","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1",null,"Philosopher-3"]},
+{"t":570,"thread":"Philosopher-2","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 2 and 3","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1",null,"Philosopher-3"]},
+{"t":572,"thread":"Philosopher-2","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 2, waiting for fork 3","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1","Philosopher-2","Philosopher-3"]},
+{"t":741,"thread":"Philosopher-3","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 3 and 0","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1","Philosopher-2","Philosopher-3"]},
+{"t":744,"thread":"Philosopher-3","actor":"Philosopher","state":"THINKING","desc":"thinks","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1","Philosopher-2",null]},
+{"t":793,"thread":"Philosopher-0","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1","Philosopher-2",null]},
+{"t":795,"thread":"Philosopher-0","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 0 and 1","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1","Philosopher-2",null]},
+{"t":802,"thread":"Philosopher-0","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 0, waiting for fork 1","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-2",null]},
+{"t":925,"thread":"Philosopher-2","actor":"Philosopher","state":"EATING","desc":"eats meal 1 after waiting 358 ms","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-2","Philosopher-2"]},
+{"t":979,"thread":"Philosopher-3","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-2","Philosopher-2"]},
+{"t":1444,"thread":"Philosopher-2","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 2 and 3","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-2","Philosopher-2"]},
+{"t":1449,"thread":"Philosopher-2","actor":"Philosopher","state":"THINKING","desc":"thinks","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1",null,null]},
+{"t":1457,"thread":"Philosopher-3","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 3 and 0","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-1",null]},
+{"t":1459,"thread":"Philosopher-1","actor":"Philosopher","state":"EATING","desc":"eats meal 1 after waiting 961 ms","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-1",null]},
+{"t":1464,"thread":"Philosopher-3","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 3, waiting for fork 0","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-1","Philosopher-3"]},
+{"t":1544,"thread":"Philosopher-1","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 1 and 2","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-1","Philosopher-3"]},
+{"t":1550,"thread":"Philosopher-1","actor":"Philosopher","state":"THINKING","desc":"thinks","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0",null,null,"Philosopher-3"]},
+{"t":1553,"thread":"Philosopher-0","actor":"Philosopher","state":"EATING","desc":"eats meal 2 after waiting 760 ms","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0",null,"Philosopher-3"]},
+{"t":1625,"thread":"Philosopher-1","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0",null,"Philosopher-3"]},
+{"t":1627,"thread":"Philosopher-1","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 1 and 2","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0",null,"Philosopher-3"]},
+{"t":1818,"thread":"Philosopher-0","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 0 and 1","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0",null,"Philosopher-3"]},
+{"t":1836,"thread":"Philosopher-0","actor":"Philosopher","state":"THINKING","desc":"thinks","value":-1,"readers":0,"writer":false,"forks":[null,null,null,"Philosopher-3"]},
+{"t":1844,"thread":"Philosopher-1","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 1, waiting for fork 2","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1",null,"Philosopher-3"]},
+{"t":1862,"thread":"Philosopher-3","actor":"Philosopher","state":"EATING","desc":"eats meal 2 after waiting 882 ms","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1",null,"Philosopher-3"]},
+{"t":1996,"thread":"Philosopher-2","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1",null,"Philosopher-3"]},
+{"t":2001,"thread":"Philosopher-2","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 2 and 3","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1",null,"Philosopher-3"]},
+{"t":2008,"thread":"Philosopher-2","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 2, waiting for fork 3","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1","Philosopher-2","Philosopher-3"]},
+{"t":2291,"thread":"Philosopher-0","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1","Philosopher-2","Philosopher-3"]},
+{"t":2417,"thread":"Philosopher-3","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 3 and 0","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3","Philosopher-1","Philosopher-2","Philosopher-3"]},
+{"t":2431,"thread":"Philosopher-3","actor":"Philosopher","state":"THINKING","desc":"thinks","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1","Philosopher-2",null]},
+{"t":2433,"thread":"Philosopher-2","actor":"Philosopher","state":"EATING","desc":"eats meal 2 after waiting 437 ms","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1","Philosopher-2","Philosopher-2"]},
+{"t":2436,"thread":"Philosopher-0","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 0 and 1","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1","Philosopher-2","Philosopher-2"]},
+{"t":2443,"thread":"Philosopher-0","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 0, waiting for fork 1","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-2","Philosopher-2"]},
+{"t":2514,"thread":"Philosopher-2","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 2 and 3","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-2","Philosopher-2"]},
+{"t":2528,"thread":"Philosopher-2","actor":"Philosopher","state":"THINKING","desc":"thinks","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-1",null]},
+{"t":2530,"thread":"Philosopher-1","actor":"Philosopher","state":"EATING","desc":"eats meal 2 after waiting 903 ms","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-1",null]},
+{"t":2669,"thread":"Philosopher-2","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-1",null]},
+{"t":2674,"thread":"Philosopher-2","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 2 and 3","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-1",null]},
+{"t":2896,"thread":"Philosopher-3","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-1",null]},
+{"t":3044,"thread":"Philosopher-1","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 1 and 2","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-1","Philosopher-1",null]},
+{"t":3052,"thread":"Philosopher-3","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 3 and 0","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0",null,null]},
+{"t":3053,"thread":"Philosopher-1","actor":"Philosopher","state":"THINKING","desc":"thinks","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0",null,null]},
+{"t":3055,"thread":"Philosopher-0","actor":"Philosopher","state":"EATING","desc":"eats meal 3 after waiting 761 ms","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0","Philosopher-2","Philosopher-3"]},
+{"t":3056,"thread":"Philosopher-3","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 3, waiting for fork 0","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0","Philosopher-2","Philosopher-3"]},
+{"t":3057,"thread":"Philosopher-2","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 2, waiting for fork 3","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0","Philosopher-2","Philosopher-3"]},
+{"t":3301,"thread":"Philosopher-0","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 0 and 1","value":-1,"readers":0,"writer":false,"forks":["Philosopher-0","Philosopher-0","Philosopher-2","Philosopher-3"]},
+{"t":3314,"thread":"Philosopher-3","actor":"Philosopher","state":"EATING","desc":"eats meal 3 after waiting 417 ms","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3",null,"Philosopher-2","Philosopher-3"]},
+{"t":3316,"thread":"Philosopher-0","actor":"Philosopher","state":"DONE","desc":"finished all meals, longest wait 761 ms","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3",null,"Philosopher-2","Philosopher-3"]},
+{"t":3546,"thread":"Philosopher-3","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 3 and 0","value":-1,"readers":0,"writer":false,"forks":["Philosopher-3",null,"Philosopher-2","Philosopher-3"]},
+{"t":3552,"thread":"Philosopher-3","actor":"Philosopher","state":"DONE","desc":"finished all meals, longest wait 882 ms","value":-1,"readers":0,"writer":false,"forks":[null,null,"Philosopher-2","Philosopher-2"]},
+{"t":3554,"thread":"Philosopher-1","actor":"Philosopher","state":"HUNGRY","desc":"is hungry, waiting for a seat at the table","value":-1,"readers":0,"writer":false,"forks":[null,null,"Philosopher-2","Philosopher-2"]},
+{"t":3555,"thread":"Philosopher-2","actor":"Philosopher","state":"EATING","desc":"eats meal 3 after waiting 883 ms","value":-1,"readers":0,"writer":false,"forks":[null,null,"Philosopher-2","Philosopher-2"]},
+{"t":3556,"thread":"Philosopher-1","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"asks for forks 1 and 2","value":-1,"readers":0,"writer":false,"forks":[null,null,"Philosopher-2","Philosopher-2"]},
+{"t":3557,"thread":"Philosopher-1","actor":"Philosopher","state":"ACQUIRING_FORKS","desc":"holds fork 1, waiting for fork 2","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1","Philosopher-2","Philosopher-2"]},
+{"t":3855,"thread":"Philosopher-2","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 2 and 3","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1","Philosopher-2","Philosopher-2"]},
+{"t":3860,"thread":"Philosopher-2","actor":"Philosopher","state":"DONE","desc":"finished all meals, longest wait 883 ms","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1",null,null]},
+{"t":4004,"thread":"Philosopher-1","actor":"Philosopher","state":"EATING","desc":"eats meal 3 after waiting 451 ms","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1","Philosopher-1",null]},
+{"t":4557,"thread":"Philosopher-1","actor":"Philosopher","state":"RELEASING_FORKS","desc":"puts down forks 1 and 2","value":-1,"readers":0,"writer":false,"forks":[null,"Philosopher-1","Philosopher-1",null]},
+{"t":4564,"thread":"Philosopher-1","actor":"Philosopher","state":"DONE","desc":"finished all meals, longest wait 961 ms","value":-1,"readers":0,"writer":false,"forks":[null,null,null,null]}
+]};
+const META = DATA.meta;
+const EVENTS = DATA.events;
+
+const $ = id => document.getElementById(id);
+const colourOf = state => 'var(--' + state + ', var(--IDLE))';
+let pos = 0;          // number of events replayed so far
+let timer = null;     // playback timer, null while paused
+
+/* ---------- static parts, built once ---------- */
+META.actors.forEach(a => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'card-' + a.thread;
+  card.innerHTML = '<div class="name"></div><div class="type"></div><div class="state"></div><div class="desc"></div>';
+  card.querySelector('.name').textContent = a.thread;
+  card.querySelector('.type').textContent = a.type;
+  $('actors').appendChild(card);
+});
+
+const statesUsed = new Set(META.actors.map(a => a.initial));
+EVENTS.forEach(e => statesUsed.add(e.state));
+statesUsed.forEach(s => {
+  const pill = document.createElement('span');
+  pill.className = 'pill';
+  pill.style.background = colourOf(s);
+  pill.textContent = s;
+  $('legend').appendChild(pill);
+});
+
+EVENTS.forEach((e, i) => {
+  const tr = document.createElement('tr');
+  const cells = [i + 1, e.t, e.thread, e.actor, null, e.desc];
+  cells.forEach((value, col) => {
+    const td = document.createElement('td');
+    if (col === 4) {
+      const pill = document.createElement('span');
+      pill.className = 'pill';
+      pill.style.background = colourOf(e.state);
+      pill.textContent = e.state;
+      td.appendChild(pill);
+    } else {
+      td.textContent = value;
+    }
+    tr.appendChild(td);
+  });
+  $('timeline').appendChild(tr);
+});
+
+Object.entries(META.summary).forEach(([key, value]) => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = '<td></td><td></td>';
+  tr.cells[0].textContent = key;
+  tr.cells[1].textContent = value;
+  $('summary').appendChild(tr);
+});
+{
+  const tr = document.createElement('tr');
+  tr.innerHTML = '<td>Events recorded</td><td></td>';
+  tr.cells[1].textContent = EVENTS.length;
+  $('summary').appendChild(tr);
+}
+
+/* ---------- drawing ---------- */
+function render() {
+  // latest event of every thread among the first `pos` events
+  const latest = {};
+  for (let i = 0; i < pos; i++) latest[EVENTS[i].thread] = EVENTS[i];
+  const cur = pos > 0 ? EVENTS[pos - 1] : null;
+
+  META.actors.forEach(a => {
+    const card = $('card-' + a.thread);
+    const e = latest[a.thread];
+    card.style.background = colourOf(e ? e.state : a.initial);
+    card.querySelector('.state').textContent = e ? e.state : a.initial;
+    card.querySelector('.desc').textContent = e ? e.desc : 'not started';
+    card.classList.toggle('current', cur !== null && cur.thread === a.thread);
+  });
+
+  const box = $('resource');
+  box.innerHTML = '';
+  if (META.forkCount > 0) {
+    $('resource-title').textContent = 'Forks';
+    for (let f = 0; f < META.forkCount; f++) {
+      const owner = cur ? cur.forks[f] : null;
+      const div = document.createElement('div');
+      div.className = 'fork' + (owner ? ' held' : '');
+      div.textContent = 'Fork ' + f + ': ' + (owner ? owner : 'free');
+      box.appendChild(div);
+    }
+    drawTable(latest, cur);
+  } else {
+    $('resource-title').textContent = 'Shared resource';
+    let value = '-';
+    for (let i = 0; i < pos; i++) if (EVENTS[i].value >= 0) value = EVENTS[i].value;
+    const readers = cur ? cur.readers : 0;
+    const writer = cur ? cur.writer : false;
+    const status = writer ? 'LOCKED (writer)' : (readers > 0 ? 'SHARED (readers)' : 'FREE');
+    [['Active readers', readers], ['Writer active', writer ? 'YES' : 'no'],
+     ['Shared value', value], ['Resource status', status]].forEach(([label, text]) => {
+      const div = document.createElement('div');
+      div.className = 'stat';
+      div.innerHTML = '<b></b><span></span>';
+      div.querySelector('b').textContent = text;
+      div.querySelector('span').textContent = label;
+      box.appendChild(div);
+    });
+  }
+
+  [...$('timeline').rows].forEach((tr, i) => {
+    tr.classList.toggle('future', i >= pos);
+    tr.classList.toggle('current', i === pos - 1);
+  });
+  if (pos > 0) $('timeline').rows[pos - 1].scrollIntoView({ block: 'nearest' });
+
+  $('status').textContent = 'Event ' + pos + ' / ' + EVENTS.length + (cur ? ' - t = ' + cur.t + ' ms' : '');
+}
+
+/* Round table: philosopher i sits at seat i, fork i lies between seat i and seat i+1.
+   A held fork is drawn next to its owner; a free fork lies on the table. */
+function drawTable(latest, cur) {
+  const svg = $('table-svg');
+  svg.removeAttribute('hidden');       // an SVG element has no .hidden property, so remove the attribute
+  svg.innerHTML = '';
+  const NS = 'http://www.w3.org/2000/svg';
+  const n = META.forkCount, C = 150;
+  const add = (tag, attrs, text) => {
+    const el = document.createElementNS(NS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    if (text !== undefined) el.textContent = text;
+    svg.appendChild(el);
+    return el;
+  };
+  const point = (angle, radius) => [C + radius * Math.cos(angle), C + radius * Math.sin(angle)];
+  const seatAngle = i => -Math.PI / 2 + 2 * Math.PI * i / n;
+  const seats = META.actors.filter(a => a.role === 'philosopher');
+
+  add('circle', { cx: C, cy: C, r: 80, fill: '#e7d8c3', stroke: '#b59b78', 'stroke-width': 3 });
+
+  for (let f = 0; f < n; f++) {
+    const owner = cur ? cur.forks[f] : null;
+    let angle = seatAngle(f) + Math.PI / n;                    // halfway between seat f and seat f+1
+    if (owner) {
+      const s = seats.findIndex(p => p.thread === owner);
+      angle = seatAngle(s) + (s === f ? 0.35 : -0.35);         // move next to the owner
+    }
+    const [x1, y1] = point(angle, owner ? 70 : 45);
+    const [x2, y2] = point(angle, owner ? 98 : 72);
+    add('line', { x1, y1, x2, y2, stroke: owner ? '#b45309' : '#9ca3af', 'stroke-width': 6, 'stroke-linecap': 'round' });
+    const [tx, ty] = point(seatAngle(f) + Math.PI / n, 28);
+    add('text', { x: tx, y: ty, 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-size': 10, fill: '#6b7280' }, 'F' + f);
+  }
+
+  seats.forEach((p, i) => {
+    const e = latest[p.thread];
+    const [x, y] = point(seatAngle(i), 125);
+    const circle = add('circle', { cx: x, cy: y, r: 22, 'stroke-width': 3,
+                                   stroke: cur && cur.thread === p.thread ? '#1d2330' : '#ffffff' });
+    circle.style.fill = colourOf(e ? e.state : p.initial);
+    add('text', { x, y, 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-size': 10,
+                  fill: '#ffffff', 'font-weight': 600 }, 'P' + p.thread.split('-')[1]);
+  });
+}
+
+/* ---------- playback ---------- */
+function step() {
+  if (pos < EVENTS.length) { pos++; render(); }
+  if (pos >= EVENTS.length) pause();
+}
+function play() {
+  pause();
+  if (pos >= EVENTS.length) pos = 0;
+  timer = setInterval(step, 1000 / Number($('speed').value));
+}
+function pause() { if (timer) { clearInterval(timer); timer = null; } }
+function reset() { pause(); pos = 0; render(); }
+
+$('play').onclick = play;
+$('pause').onclick = pause;
+$('step').onclick = () => { pause(); step(); };
+$('reset').onclick = reset;
+$('speed').oninput = () => { if (timer) play(); };
+
+render();
+</script>
+</body>
+</html>
