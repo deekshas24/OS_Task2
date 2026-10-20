@@ -1,9 +1,5 @@
 # OS Synchronization Assignment
 
-**Student name:** `[YOUR NAME]`
-**USN:** `[YOUR USN]`
-**Course:** Operating Systems (5th semester, Information Science and Engineering)
-
 AI-assisted synchronization algorithms with program-generated HTML simulation:
 Readers-Writers and Dining Philosophers (4 philosophers), each solved with semaphores and with monitors.
 
