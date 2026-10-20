@@ -3,7 +3,6 @@ package dining_philosophers.monitor;
 import common.SimulationHtmlWriter;
 import common.SimulationHtmlWriter.Actor;
 import common.TraceRecorder;
-
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -76,8 +75,7 @@ public class DiningPhilosophersMonitor {
             if (state[l] == State.EATING || state[r] == State.EATING) return false; // a fork is in use
             // do not overtake an older hungry neighbour (prevents starvation)
             if (state[l] == State.HUNGRY && ticket[l] < ticket[i]) return false;
-            if (state[r] == State.HUNGRY && ticket[r] < ticket[i]) return false;
-            return true;
+                        return !(state[r] == State.HUNGRY && ticket[r] < ticket[i]);
         }
 
         /** Philosopher i becomes hungry and blocks until both forks can be taken. */
