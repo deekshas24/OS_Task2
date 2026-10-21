@@ -1,5 +1,8 @@
 # OS Synchronization Assignment
 
+- **Name:** Deeksha S
+- **USN:** NNM24IS063
+
 AI-assisted synchronization algorithms with program-generated HTML simulation:
 Readers-Writers and Dining Philosophers (4 philosophers), each solved with semaphores and with monitors.
 
@@ -106,9 +109,9 @@ Screenshots of the console and of the generated HTML are in `screenshots/`.
 - If a Dining Philosophers program deadlocked, it would hang instead of printing the final line.
 
 ## Known limitations
-- The replay pauses between events follow the real time gaps of the run but are limited to a minimum and maximum so the animation stays watchable.
-- Readers-Writers semaphore version: writers can starve (reader priority). Monitor version: readers can wait longer (writer priority). Each program's header comment explains this.
-- Java 17 or newer is required (the HTML template uses a text block).
+- Each run produces a different trace because of random delays.
+- The HTML is a replay of a finished run, not a live view.
+- Output goes to the terminal and the HTML only.
 
 ## AI tools used
 See `ai_prompts/prompts.md` for the tool names, the prompts and what was changed manually.
